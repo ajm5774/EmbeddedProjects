@@ -25,5 +25,6 @@ void clearScreen()
 }
 void printMeasure()
 {
-
+	clearScreen();
+	printf();
 }

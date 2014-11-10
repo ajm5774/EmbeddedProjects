@@ -11,5 +11,6 @@
 //equivalent of a ping
 int measureDistance(void);
 void pulse(int duration);
+int echo();
 
 #endif /* SENSORINTERFACE_H_ */
