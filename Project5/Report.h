@@ -8,8 +8,12 @@
 #ifndef REPORT_H_
 #define REPORT_H_
 
-int getMaxDistance();
-int getMinDistance();
+int maxDistance = 0;
+int minDistance = 0;
 
+void processMeasure(int measure);
+void printReport();
+void clearScreen();
+void printMeasure();
 
 #endif /* REPORT_H_ */

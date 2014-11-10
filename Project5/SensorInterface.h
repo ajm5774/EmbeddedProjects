@@ -9,10 +9,7 @@
 #define SENSORINTERFACE_H_
 
 //equivalent of a ping
-int MeasureDistance(void);
-void SendOutput();
-void GetInput();
-void StartMeasuring(void);
-void EndMeasuring(void);
+int measureDistance(void);
+void pulse(int duration);
 
 #endif /* SENSORINTERFACE_H_ */

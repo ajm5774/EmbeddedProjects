@@ -3,33 +3,16 @@
 
 #include "Timer.h"
 
-static struct timespec timeSpecStruct;
-
-struct timespec getTime()
-{
-    if( clock_gettime( CLOCK_REALTIME, &timeSpecStruct) == -1 ) {
-      perror( "clock gettime" );
-      return 0;
-    }
-	return timeSpecStruct;
-}
-
-struct timespec getDifference(struct timespec ts1, struct timespec ts2)
-{
-
-}
 
 void StartTimer()
 {
 	//declare variables
 	int pid;
-	int chid;
 	int pulse_id = 0 ;
 	timer_t timer_id;
 	struct sigevent event;
 	struct itimerspec timer;
 	struct _clockperiod clkper;
-	struct _pulse pulse;
 	int privity_err;
 	uintptr_t ctrl_handle;
 	uintptr_t data_handle;
@@ -53,12 +36,12 @@ void StartTimer()
 	ClockPeriod ( CLOCK_REALTIME, &clkper, NULL, 0 ); // 1ms
 
 	//Create a channel to receive timer events on.
-	chid = ChannelCreate( 0 );
-	assert ( chid != -1 );			// if returns a -1 for failure we stop with error
+	channel_id = ChannelCreate( 0 );
+	assert ( channel_id != -1 );			// if returns a -1 for failure we stop with error
 
 	//Set up the timer and timer event.
 	event.sigev_notify = SIGEV_PULSE;		// most basic message we can send -- just a pulse number
-	event.sigev_coid = ConnectAttach ( ND_LOCAL_NODE, 0, chid, 0, 0 );  // Get ID that allows me to communicate on the channel
+	event.sigev_coid = ConnectAttach ( ND_LOCAL_NODE, 0, channel_id, 0, 0 );  // Get ID that allows me to communicate on the channel
 	assert ( event.sigev_coid != -1 );		// stop with error if cannot attach to channel
 	event.sigev_priority = getprio(0);
 	event.sigev_code = 1023;				// arbitrary number assigned to this pulse
@@ -95,13 +78,11 @@ void StartTimer()
 	/* Get a handle to the parallel port's Control register */
 	ctrl_handle = mmap_device_io( PORT_LENGTH, CTRL_ADDRESS );
 
-	/* Initialise the parallel port */
+	/* Initialize the parallel port */
 	out8( ctrl_handle, INIT_BIT );
 
 	/* Get a handle to the parallel port's Data register */
 	data_handle = mmap_device_io( PORT_LENGTH, DATA_ADDRESS );
-
-
 }
 
 

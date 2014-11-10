@@ -5,12 +5,25 @@
  *      Author: ajm5774
  */
 
-int getMaxDistance()
+void processMeasure(int distance)
+{
+	if(distance < minDistance)
+		minDistance = distance;
+
+	if (distance > maxDistance)
+		maxDistance = distance;
+}
+void printReport()
+{
+	printf("--------------Report-------------");
+	printf("Minimum Distance: %d \n", minDistance);
+	printf("Maximum Distance: %d \n", maxDistance);
+}
+void clearScreen()
 {
 
 }
-
-int getMinDistance()
+void printMeasure()
 {
 
 }

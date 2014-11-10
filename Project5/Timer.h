@@ -10,8 +10,9 @@
 
 #define NUMBER_OF_TELLERS 3
 
-struct timespec getTime();
-struct timespec getDifference(struct timespec ts1, struct timespec ts2);
+int channel_id;
+struct _pulse pulse;
+
 void StartTimer();
 
 #endif /* TELLERINTERFACE_H_ */
