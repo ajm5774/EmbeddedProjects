@@ -8,9 +8,36 @@
 #ifndef SENSORINTERFACE_H_
 #define SENSORINTERFACE_H_
 
-//equivalent of a ping
-int measureDistance(void);
-void pulse(int duration);
-int echo();
+#define PORT_LENGTH 1
+
+#define SONAR_ADDRESS 0x280
+#define SONAR_PORTA SONAR_ADDRESS+8
+#define SONAR_PORTB SONAR_ADDRESS+9
+#define SONAR_PORTC SONAR_ADDRESS+10
+#define SONAR_CTRL SONAR_ADDRESS+11
+
+#define DIRA(bit) (bit << 4)
+#define DIRB(bit) (bit << 1)
+
+#define OUTPUT 0
+#define INPUT 1
+
+#define LOW 0x00
+#define HIGH 0xFF
+
+#define CLEAR_DURATION 2 // 10us
+#define PULSE_DURATION 10 // 10us
+
+// Record the total distance
+float measureDistance(void);
+
+// Send a single pulse on the TRIGGER line
+void pulse(int usec);
+
+// Measure the time on the ECHO line
+uint64_t echo();
+
+// Initialize the ports
+void init(int triggerPort, int echoPort);
 
 #endif /* SENSORINTERFACE_H_ */
