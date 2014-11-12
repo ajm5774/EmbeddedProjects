@@ -3,9 +3,17 @@
 
 #include "Timer.h"
 
-
-void StartTimer()
+struct timespec getTime()
 {
+	if( clock_gettime( CLOCK_REALTIME, &currentTime) == -1 ) {
+	  perror( "clock gettime" );
+	}
+
+	return currentTime;
+}
+
+void StartTimer(){}
+/*{
 	//declare variables
 	int pid;
 	int pulse_id = 0 ;
@@ -20,10 +28,10 @@ void StartTimer()
 	float cpu_freq;
 	time_t start;
 
-	/* Get the CPU frequency in order to do precise time calculations. */
+	//Get the CPU frequency in order to do precise time calculations.
 	cpu_freq = SYSPAGE_ENTRY( qtime )->cycles_per_sec;
 
-	/* Set our priority to the maximum, so we won’t get disrupted by anything other than interrupts. */
+	//Set our priority to the maximum, so we won’t get disrupted by anything other than interrupts.
 	struct sched_param param;
 	int ret;
 	param.sched_priority = sched_get_priority_max( SCHED_RR );
@@ -54,20 +62,20 @@ void StartTimer()
 		exit( EXIT_FAILURE );
 	}
 
-	/* Change the timer request to alter the behavior. */
+	//Change the timer request to alter the behavior.
 	timer.it_value.tv_sec = 0;
 	timer.it_value.tv_nsec = 500000;		// interrupt at .5 ms.
 	timer.it_interval.tv_sec = 0;
 	timer.it_interval.tv_nsec = 500000;	// keep interrupting every .5 ms.
 
-	/* Start the timer. */
+	//Start the timer.
 	if ( timer_settime( timer_id, 0, &timer, NULL ) == -1 )
 	{
 		perror("Can’t start timer.\n");
 		exit( EXIT_FAILURE );
 	}
 
-	/* Give this thread root permissions to access the hardware */
+	//Give this thread root permissions to access the hardware
 	privity_err = ThreadCtl( _NTO_TCTL_IO, NULL );
 	if ( privity_err == -1 )
 	{
@@ -75,15 +83,16 @@ void StartTimer()
 		return -1;
 	}
 
-	/* Get a handle to the parallel port's Control register */
+	//Get a handle to the parallel port's Control register
 	ctrl_handle = mmap_device_io( PORT_LENGTH, CTRL_ADDRESS );
 
-	/* Initialize the parallel port */
+	//Initialize the parallel port
 	out8( ctrl_handle, INIT_BIT );
 
-	/* Get a handle to the parallel port's Data register */
+	//Get a handle to the parallel port's Data register
 	data_handle = mmap_device_io( PORT_LENGTH, DATA_ADDRESS );
-}
+
+}*/
 
 
 
