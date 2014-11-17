@@ -15,7 +15,7 @@ void processMeasure(int distance)
 }
 void printReport()
 {
-	printf("--------------Report-------------");
+	printf("--------------Report-------------\n");
 	printf("Minimum Distance: %d \n", _minDistance);
 	printf("Maximum Distance: %d \n", _maxDistance);
 }
@@ -26,7 +26,11 @@ void clearMeasurements()
 }
 void printMeasure(int distance)
 {
-	printf("Distance: %d in\r", distance);
-	processMeasure(distance);
-
+	if(distance == 0)
+		printf("Distance: * in\r");
+	else
+	{
+		printf("Distance: %d in\r", distance);
+		processMeasure(distance);
+	}
 }

@@ -17,15 +17,17 @@
 #define OUTPUT 0
 #define INPUT 1
 
-#define LOW 0x00
-#define HIGH 0xFF
+#define LOW 0
+#define HIGH 1
 
-#define CLEAR_DURATION (2) // 10us
+#define CLEAR_DURATION (2) // 2us
 #define PULSE_DURATION (10) // 10us
 #define MAX_ECHO_TIME (18.0/1000.0) // 18ms
 
 // Record the total distance
 float measureDistance(void);
+
+float boundDistance(float distance);
 
 // Send a single pulse on the TRIGGER line
 void pulse(int usec);

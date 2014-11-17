@@ -7,11 +7,6 @@
 #include "SensorInterface.h"
 #include "Report.h"
 
-//int roundNum(float number)
-//{
-	//return (int)(number - floor(number) >= 0.5) ? ceil(number) : floor(number);
-//}
-
 int main(int argc, char *argv[]) {
 
 	float mDistance;
@@ -36,11 +31,9 @@ int main(int argc, char *argv[]) {
 			mDistance = measureDistance();
 
 			// Round result & print
-			//distance = roundNum(mDistance);
-			//distance = (int) mDistance;
+			distance = (int) roundf(mDistance);
 
-			//printMeasure(mDistance);
-			printf("Distance: %f\n", mDistance);
+			printMeasure(distance);
 		}
 
 		// Clear the character
