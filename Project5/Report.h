@@ -10,7 +10,7 @@
 
 void processMeasure(int measure);
 void printReport();
-void clearScreen();
+void clearMeasurements();
 void printMeasure();
 
 #endif /* REPORT_H_ */

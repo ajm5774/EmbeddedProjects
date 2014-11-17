@@ -36,6 +36,7 @@ float measureDistance(void)
 	// Record the echo time
 	nCycles = echo();
 	printf("cycles: %ld, cps: %ld\n", nCycles, cps);
+
 	// Convert cycles to microseconds
 	distance = (nCycles / cps) * 1000 * 1000;
 
@@ -68,7 +69,7 @@ uint64_t echo()
 	// HIGH event received, Start recording time
 	startCycle = ClockCycles();
 
-	while (in8(echo_handle) == HIGH);
+	while (in8(echo_handle) > LOW);
 
 	// Echo pulse ended. Record end time
 	endCycle = ClockCycles();

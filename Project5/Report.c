@@ -1,7 +1,9 @@
+#include <stdio.h>
+#include <limits.h>
 #include "Report.h"
 
-int _maxDistance = 0;
-int _minDistance = 0;
+static int _maxDistance = INT_MAX;
+static int _minDistance = 0;
 
 void processMeasure(int distance)
 {
@@ -17,12 +19,14 @@ void printReport()
 	printf("Minimum Distance: %d \n", _minDistance);
 	printf("Maximum Distance: %d \n", _maxDistance);
 }
-void clearScreen()
+void clearMeasurements()
 {
-
+	_maxDistance = INT_MAX;
+	_minDistance = 0;
 }
 void printMeasure(int distance)
 {
-	//clear;
-	printf("Distance: %f in. \n", distance);
+	printf("%c Distance: %d in", (char)0x15, 1);
+	processMeasure(distance);
+
 }
