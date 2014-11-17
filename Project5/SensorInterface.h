@@ -20,8 +20,9 @@
 #define LOW 0x00
 #define HIGH 0xFF
 
-#define CLEAR_DURATION 2 // 10us
-#define PULSE_DURATION 10 // 10us
+#define CLEAR_DURATION (2) // 10us
+#define PULSE_DURATION (10) // 10us
+#define MAX_ECHO_TIME (18.0/1000.0) // 18ms
 
 // Record the total distance
 float measureDistance(void);

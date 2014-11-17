@@ -4,6 +4,7 @@
 #include <hw/inout.h>
 #include <sys/mman.h>
 #include <stdint.h>
+#include <unistd.h>
 
 #include "SensorInterface.h"
 
@@ -11,10 +12,13 @@ static uintptr_t ctrl_handle;
 static uintptr_t trigger_handle;
 static uintptr_t echo_handle;
 
+static uint64_t max_echo_cycles;
+static uint64_t cps;
+
 static float _cmDivisor = 27.6233;
 static float _inDivisor = 70.1633;
 
-static float convert(long microsec, int isMetric)
+static float convert(double microsec, int isMetric)
 {
 	// microsec / 29 / 2;
 	if(isMetric)
@@ -27,18 +31,20 @@ static float convert(long microsec, int isMetric)
 float measureDistance(void)
 {
 	uint64_t nCycles;
-	long distance;
-	uint64_t cps = SYSPAGE_ENTRY(qtime)->cycles_per_sec;
+	double distance;
+	cps = SYSPAGE_ENTRY(qtime)->cycles_per_sec;
+
+	// Determine the maximum cycles an echo can be
+	max_echo_cycles = MAX_ECHO_TIME * cps ;
 
 	// Send a pulse
 	pulse(PULSE_DURATION);
 
 	// Record the echo time
 	nCycles = echo();
-	printf("cycles: %ld, cps: %ld\n", nCycles, cps);
 
 	// Convert cycles to microseconds
-	distance = (nCycles / cps) * 1000 * 1000;
+	distance = (double) (nCycles * 1000 * 1000 / cps);
 
 	// Convert to inches
 	return convert(distance, 0);
@@ -62,19 +68,21 @@ void pulse(int usec)
 
 uint64_t echo()
 {
-	uint64_t startCycle, endCycle;
+	uint64_t startCycle;
+	uint64_t cycles = 0;
+
 	// Listen for a HIGH event
-	while (in8(echo_handle) == LOW);
+	while ((in8(echo_handle) & 1) == 0 && cycles++ < max_echo_cycles);
 
 	// HIGH event received, Start recording time
 	startCycle = ClockCycles();
+	cycles = startCycle;
 
-	while (in8(echo_handle) > LOW);
+	while ((in8(echo_handle) & 1) == 1 && cycles < max_echo_cycles)
+		cycles += ClockCycles() - cycles;
 
-	// Echo pulse ended. Record end time
-	endCycle = ClockCycles();
-
-	return endCycle - startCycle;
+	// Echo pulse ended. Return end time
+	return cycles;
 }
 
 void init(int triggerPort, int echoPort)
