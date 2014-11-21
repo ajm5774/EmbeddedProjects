@@ -8,7 +8,6 @@
 #define ENGINE_H
 
 #include "servo.h"
-#include "types.h"
 
 typedef struct {
 	int		numServos;	/* The number of servos. */
@@ -23,6 +22,6 @@ void tick(Engine engine);
 /*
  * Send a user command to the given servo.
  */
-void sendCommand(Servo *servo, UINT8 command);
+void sendCommand(Servo *servo, unsigned char command);
 
 #endif

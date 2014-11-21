@@ -7,8 +7,6 @@
 
 #include "servo.h"
 
-int positionToPWM[6] = {5, 9, 13, 17, 21, 25};
-
 void execute(Servo *servo, Instruction command) {
 	enum State state = servo->state;
 
@@ -28,7 +26,7 @@ void execute(Servo *servo, Instruction command) {
 	}
 }
 
-void pause(Servo *servo) {
+void pauseExec(Servo *servo) {
 	/* Switch to paused state if recipe not ended/error */
 	if (servo->state != ERROR && servo->state != END) {
 		servo->state = PAUSE;
@@ -110,7 +108,6 @@ void process(Servo *servo, Instruction b) {
 void mov(Servo *servo, int parameter) {
 	if (parameter >= 0 && parameter <= 5) { /* Valid input */
 		servo->position = parameter;
-    * servo->pwmDuty = positionToPWM[parameter];
 		/* Increment the PC */
 		servo->pc++;
 
@@ -176,27 +173,27 @@ void setStatus(Servo *servo, enum Status status) {
      switch(status) {
       case RecipeCommandError:
         //set LEDs to 0 x x x
-        *servo->leds &= LED_3_ON;
+        //*servo->leds &= LED_3_ON;
       break;
       case NestedLoopError:
         //set LEDs to x 0 x x
-        *servo->leds &= LED_2_ON;
+        //*servo->leds &= LED_2_ON;
       break;
       case EndOfRecipe:
         //set LEDs to x x 0 x
-        *servo->leds &= LED_1_ON;
+        //*servo->leds &= LED_1_ON;
       break;
       case RecipePaused:
         //set LEDs to x x x 0
-        *servo->leds &= LED_0_ON;
+        //*servo->leds &= LED_0_ON;
       break;
       case RecipeRunning:
         //set LEDs to x x x 1
-        *servo->leds |= LED_0_OFF;
+        //*servo->leds |= LED_0_OFF;
         break;
       case Reset:
         //set LEDs to 1 1 1 1
-        *servo->leds |= LED_3_OFF | LED_2_OFF | LED_1_OFF | LED_0_OFF;
+        //*servo->leds |= LED_3_OFF | LED_2_OFF | LED_1_OFF | LED_0_OFF;
         break;
      }
 

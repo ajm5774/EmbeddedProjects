@@ -12,47 +12,117 @@
  *****************************************************************************/
 // system includes
 #include <stdio.h>      /* Standard I/O Library */
-
+#include <pthread.h>
+#include <sys/neutrino.h>
+#include <sys/mman.h>     /* for mmap_device_io() */
+#include <stdint.h>       /* for uintptr_t */
+#include <hw/inout.h>
+#include <unistd.h>
+#include "timer.h"
 #include "engine.h"
 //-----------------------------------------------------------------------------
 
 // Definitions
-#define PERIODMILLIS  ((UINT16)20)
-#define PWMPRCLKVALUE ((UINT16)4)
-#define PWMSCLAVALUE  ((UINT16)5)
+#define PERIODMILLIS  ((int)20)
+#define PWMPRCLKVALUE ((int)4)
+#define PWMSCLAVALUE  ((int)5)
 #define DATA_ADDRESS 0x378
 #define CTRL_ADDRESS 0x37a
 #define PORT_LENGTH 1
 #define LOW 0x00
 #define HIGH 0xFF
+#define INIT_BIT 0x04
 
 //Threads
 pthread_t * IOThread;
 pthread_t * ServoExecThread;
 pthread_t * Servo1PWMThread;
-pthread_t * Servo2PWMthread;
+pthread_t * Servo2PWMThread;
+
+//Instructions/recipes
+Instruction recipe1[] = {
+  INSTRUCTION(MOV, 0),
+  INSTRUCTION(WAIT, 0),
+  INSTRUCTION(MOV, 1),
+  INSTRUCTION(MOV, 2),
+  INSTRUCTION(LOOP_START, 3),
+  INSTRUCTION(MOV, 3),
+  INSTRUCTION(LOOP_START, 3),
+  INSTRUCTION(MOV, 4),
+  INSTRUCTION(MOV, 5),
+  INSTRUCTION(END_LOOP, 0),
+  INSTRUCTION(MOV, 3),
+  INSTRUCTION(RECIPE_END,0)
+};
+
+Instruction recipe2[] = {
+  INSTRUCTION(MOV, 0),
+  INSTRUCTION(WAIT, 2),
+  INSTRUCTION(MOV, 16),
+  INSTRUCTION(MOV, 0),
+  INSTRUCTION(MOV, 3),
+  INSTRUCTION(LOOP_START, 3),
+  INSTRUCTION(MOV, 1),
+  INSTRUCTION(MOV, 4),
+  INSTRUCTION(END_LOOP, 0),
+  INSTRUCTION(MOV, 0),
+  INSTRUCTION(RECIPE_END,0)
+};
 
 //servos
-Servo servos[2];
+Servo * servos[] = {
+	{1,3,0,0,0,0,INIT, recipe1},
+	{2,3,0,0,0,0,INIT, recipe2}
+};
 
 //interrupts
 Interrupt * instructionInterrupt;
 Interrupt * pwmInterrupt;
 
-/*INT32 clkafreq;
-int flag = 0;
-UINT8 userInput1 = 0;
-UINT8 userInput2 = 0;
-int flagHasUserInput = 0;
-char newLine = '\n';
-int userInputIndex = 0;
+//Engine
+Engine engine = {2, &servos};//2 servos
 
-
-void ConfigurePer(UINT16 periodMillis, Servo *servo )
+void UserIO(int threadID)
 {
-   * servo->pwmPer = clkafreq *  periodMillis / 1000;
+
 }
-*/
+
+void ExecuteInstructions(Interrupt * interrupt)
+{
+	struct _pulse pulse;
+
+	while(1)
+	{
+		MsgReceive(interrupt->chid, &pulse, sizeof(pulse), NULL);
+		tick(engine);
+	}
+}
+
+void pwmThread(Interrupt * interrupt, Servo * servo)
+{
+	struct _pulse pulse;
+	uintptr_t ctrl_handle;
+	uintptr_t data_handle;
+	int positionToMicroSecHigh[] = {5, 9, 13, 17, 21, 25};
+
+
+	/* Get a handle to the parallel port's Control register */
+	ctrl_handle = mmap_device_io( PORT_LENGTH, CTRL_ADDRESS );
+
+	/* Initialize the parallel port */
+	out8( ctrl_handle, INIT_BIT );
+
+	/* Get a handle to the parallel port's Data register */
+	data_handle = mmap_device_io( PORT_LENGTH, DATA_ADDRESS );
+
+	while(1)
+	{
+		MsgReceive(interrupt->chid, &pulse, sizeof(pulse), NULL);
+		out8( data_handle, HIGH );
+		usleep(positionToMicroSecHigh[servo->position]);
+		out8( data_handle, LOW );
+	}
+}
 
 void CreateThreads()
 {
@@ -73,127 +143,18 @@ void CreateThreads()
 	pthread_create( Servo2PWMThread, &threadAttributes, (void *)pwmThread, pwmInterrupt);
 }
 
-void UserIO(int threadID)
-{
-
-}
-
-void ExecuteInstructions(Interrupt * interrupt)
-{
-	struct _pulse pulse;
-
-	while(1)
-	{
-		rcvid = MsgReceive(interrupt->chid, &pulse, sizeof(pulse), NULL);
-		tick(engine);
-	}
-}
-
-void pwmThread(Interrupt * interrupt, Servo * servo)
-{
-	struct _pulse pulse;
-
-	/* Get a handle to the parallel port's Control register */
-	ctrl_handle = mmap_device_io( PORT_LENGTH, CTRL_ADDRESS );
-
-	/* Initialise the parallel port */
-	out8( ctrl_handle, INIT_BIT );
-
-	/* Get a handle to the parallel port's Data register */
-	data_handle = mmap_device_io( PORT_LENGTH, DATA_ADDRESS );
-
-	while(1)
-	{
-		rcvid = MsgReceive(interrupt->chid, &pulse, sizeof(pulse), NULL);
-		out8( data_handle, HIGH );
-		usleep(* servo->pwmDuty);
-		out8( data_handle, LOW );
-	}
-}
-
 void main(void)
 {
-   UINT16 userInput;
-   UINT8 test;
-   int i;
-   UINT8 ch = 0;
+	//create interrupts
+	instructionInterrupt = CreateInterrupt(1000000);//1sec
+	pwmInterrupt = CreateInterrupt(PERIODMILLIS * 1000);//20ms
 
-   const int  numServos = 2;
+    //Create Threads
+    CreateThreads();
 
-
-   Instruction recipe1[] = {
-      INSTRUCTION(MOV, 0),
-      INSTRUCTION(WAIT, 0),
-      INSTRUCTION(MOV, 1),
-      INSTRUCTION(MOV, 2),
-      INSTRUCTION(LOOP_START, 3),
-      INSTRUCTION(MOV, 3),
-      INSTRUCTION(LOOP_START, 3),
-      INSTRUCTION(MOV, 4),
-      INSTRUCTION(MOV, 5),
-      INSTRUCTION(END_LOOP, 0),
-      INSTRUCTION(MOV, 3),
-      INSTRUCTION(RECIPE_END,0)
-   };
-
-   Instruction recipe2[] = {
-      INSTRUCTION(MOV, 0),
-      INSTRUCTION(WAIT, 2),
-      INSTRUCTION(MOV, 16),
-      INSTRUCTION(MOV, 0),
-      INSTRUCTION(MOV, 3),
-      INSTRUCTION(LOOP_START, 3),
-      INSTRUCTION(MOV, 1),
-      INSTRUCTION(MOV, 4),
-      INSTRUCTION(END_LOOP, 0),
-      INSTRUCTION(MOV, 0),
-      INSTRUCTION(RECIPE_END,0)
-   };
-
-   /* Initialize the servos */
-   servos = {
-    {1,3,0,0,0,0,INIT,&PWMDTY0, &PWMPER0, &PORTB, recipe1},
-    {2,3,0,0,0,0,INIT,&PWMDTY1, &PWMPER1, &PORTB, recipe2}
-   };
-
-   instructionInterrupt = CreateInterrupt(1000000);//1sec
-   pwmInterrupt = CreateInterrupt(PERIODMILLIS * 1000);//20ms
-
-   /* Initialize the engine */
-   Engine engine = {numServos, servos};
-
-   clkafreq = BUS_CLK_FREQ / (PWMSCLAVALUE * 2);
-   clkafreq = clkafreq / (1 << PWMPRCLKVALUE);
-
-   //start these before starting the timer to fulfill recipe
-   (void)InitializeSerialPort();
-   //(void)InitPositionToPWM(PERIODMILLIS);
-
-   (void)InitializePwm();
-   (void)ConfigurePer(PERIODMILLIS, &servos[0]);
-   (void)ConfigurePer(PERIODMILLIS, &servos[1]);
-   (void)InitializeLEDs();
-   (void)InitializeTimer();//start processing Instructions
-
-   //Output new line and command prompt initially
-   TERMIO_PutChar(newLine);
-   TERMIO_PutChar('>');
-
-
-   for (;;){
-      GetUserCommand();
-      if(flagHasUserInput == 1)
-      {
-        sendCommand(&servos[0], userInput1);
-        sendCommand(&servos[1], userInput2);
-
-        flagHasUserInput = 0;
-        userInputIndex = 0;
-      }
-
-      if(flag == 1) {
-        tick(engine);
-        flag = 0;
-      }
-   }
+    //start the interrupts
+    //startInterrupt(instructionInterrupt);
+    startInterrupt(pwmInterrupt);
 }
+
+

@@ -22,12 +22,12 @@ void tick(Engine engine) {
   }
 }
 
-void sendCommand(Servo *servo, UINT8 command) {
+void sendCommand(Servo *servo, unsigned char command) {
 	switch (command) {
 		case 'P':
 		case 'p':
 			/* Pause */
-			pause(servo);
+			pauseExec(servo);
 			break;
 		case 'C':
 		case 'c':

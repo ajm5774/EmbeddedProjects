@@ -11,17 +11,6 @@
 #define PARAM(b)	((b) & 0x1F)
 #define INSTRUCTION(opcode, param) ((opcode << 5) | param)
 
-// LED masks
-#define LED_3_OFF (1<<7)
-#define LED_2_OFF (1<<6)
-#define LED_1_OFF (1<<5)
-#define LED_0_OFF (1<<4)
-
-#define LED_3_ON (0<<7 | LED_2_OFF | LED_1_OFF | LED_0_OFF)
-#define LED_2_ON (0<<6 | LED_3_OFF | LED_1_OFF | LED_0_OFF)
-#define LED_1_ON (0<<5 | LED_3_OFF | LED_2_OFF | LED_0_OFF)
-#define LED_0_ON (0<<4 | LED_3_OFF | LED_2_OFF | LED_1_OFF)
-
 /*
  * An Instruction is a single byte composed of:
  * Opcode - 3 bits
@@ -55,16 +44,13 @@ enum Status {
 };
 
 typedef struct {
-  int   id;
-	int		position;	/* Current Servo Position */
-	int		pc;		/* Current position in recipe */
+	int  		id;
+	int			position;	/* Current Servo Position */
+	int			pc;		/* Current position in recipe */
 	int 		loopsRemaining;	/* Number of loops left */
-	int		isWaiting : 1;	/* Is the servo waiting? */
+	int			isWaiting : 1;	/* Is the servo waiting? */
 	int 		waitsRemaining;	/* Number of waits left */
 	enum State	state;		/* Current state of the servo */
-	unsigned char *   pwmDuty;
-	unsigned char *   pwmPer;
-	unsigned char *   leds;
 	Instruction *recipe;
 } Servo;
 
@@ -79,7 +65,7 @@ void execute(Servo *servo, Instruction command);
  *
  * Not operative after recipe end or error.
  */
-void pause(Servo *servo);
+void pauseExec(Servo *servo);
 
 /**
  * Continue Recipe Execution

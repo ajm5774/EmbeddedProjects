@@ -1,3 +1,11 @@
+#include <stdint.h>       /* for uintptr_t */
+#include <hw/inout.h>     /* for in*() and out*() functions */
+#include <sys/neutrino.h> /* for ThreadCtl() */
+#include <sys/mman.h>     /* for mmap_device_io() */
+#include <sys/netmgr.h>
+#include <assert.h>
+#include "timer.h"
+
 Interrupt * CreateInterrupt(int periodMicros)
 {
 	//declare variables
@@ -6,6 +14,8 @@ Interrupt * CreateInterrupt(int periodMicros)
 	struct _clockperiod clkper;
 	struct sched_param param;
 	timer_t timer_id;
+	Interrupt ret;
+
 	int chid = ChannelCreate( 0 ); //create event channel
 
 	/* Set our priority to the maximum, so we won’t get disrupted by anything other than interrupts. */
@@ -35,17 +45,14 @@ Interrupt * CreateInterrupt(int periodMicros)
 	/* Give this thread root permissions to access the hardware */
 	ThreadCtl( _NTO_TCTL_IO, NULL );
 
-	return &Interrupt(timer_id, timer, chid, periodMicros);
+	ret = (Interrupt){timer_id, timer, chid, periodMicros};
+
+	return &ret;
 }
 
 void startInterrupt(Interrupt * interrupt)
 {
-	/* Start the timer. */
-	if ( timer_settime( interrupt->timer_id, 0, &interrupt->timer, NULL ) == -1 )
-	{
-		perror("Can’t start timer.\n");
-		exit( EXIT_FAILURE );
-	}
+	timer_settime( interrupt->timer_id, 0, &interrupt->timer, NULL );
 }
 
 void stopTimer()
