@@ -15,7 +15,7 @@ typedef struct{
 	int period;
 } Interrupt;
 
-Interrupt * CreateInterrupt(int periodMicros);
+void CreateInterrupt(Interrupt *ret, long periodMicros, long sec);
 void startInterrupt(Interrupt * interrupt);
 void stopTimer();
 
