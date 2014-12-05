@@ -6,8 +6,8 @@
  *
  *
  * Author:
- *  Andrew Mueller (9/08/2014)
- *  Matt Warner (09/08/2014)
+ *  Andrew Mueller (11/23/2014)
+ *  Matt Warner (11/23/2014)
  *
  *****************************************************************************/
 // system includes
@@ -50,6 +50,7 @@ Instruction recipe1[] = {
   INSTRUCTION(MOV, 2),
   INSTRUCTION(LOOP_START, 3),
   INSTRUCTION(MOV, 3),
+  INSTRUCTION(LOOP_START, 3),
   INSTRUCTION(MOV, 4),
   INSTRUCTION(MOV, 5),
   INSTRUCTION(END_LOOP, 0),
@@ -105,7 +106,7 @@ void UserIO(int threadID)
 	char anInput;
 	int index = 0;
 
-	printf("\n>");
+	printf(">");
 
 	while(1)
 	{
@@ -113,19 +114,18 @@ void UserIO(int threadID)
 
 		if(anInput == 'x' || anInput == 'X')
 		{
-			printf("\n>");
 			index = 0;
 		}
-		else if(anInput == 13 && index >= 2)
+		else if(anInput == '\n' && index >= 2)
 		{
 			sendCommand(&servos[0], inputs[0]);
 			sendCommand(&servos[1], inputs[1]);
 			index = 0;
-			printf("\n>");
+			printf(">");
 		}
-		else if(anInput == 13)
+		else if(anInput == '\n')
 		{
-			printf("\n>");
+			printf(">");
 			index = 0;
 		}
 		else if((anInput >= 97 && anInput <= 122) ||
@@ -152,6 +152,7 @@ void ExecuteInstructions(int threadID)
 void pwmThread(Servo * servo)
 {
 	struct _pulse pulse;
+	//struct _clockperiod clkper;
 	Interrupt * pwmInterrupt = (servo->id == 1)? &pwm1Interrupt : &pwm2Interrupt;
 
 	/* Give this thread root permissions to access the hardware */
@@ -159,7 +160,11 @@ void pwmThread(Servo * servo)
 
 	uintptr_t data_handle = (servo->id == 1)? mmap_device_io( PORT_LENGTH, DAQ_A ) : mmap_device_io( PORT_LENGTH, DAQ_B );
 
-	int positionToMicroSecHigh[] = {500, 760, 1020, 1280, 1540, 1800};
+	//clkper.nsec = 10000;
+	//clkper.fract = 0;
+	//ClockPeriod ( CLOCK_REALTIME, &clkper, NULL, 0 ); // 1ms
+
+	int positionToMicroSecHigh[] = {700, 980, 1260, 1540, 1820, 2100};
 
 	while(1)
 	{
@@ -178,14 +183,13 @@ void CreateThreads()
 
 	pthread_attr_init(&threadAttributes) ;		// initialize thread attributes structure -- must do before any other activity on this struct
 	pthread_getschedparam(pthread_self(), &policy, &parameters) ;	// get this main thread's scheduler parameters
-	parameters.sched_priority-- ;									// lower the priority
+	parameters.sched_priority-- ;// lower the priority
 	pthread_attr_setschedparam(&threadAttributes, &parameters) ;	// set up the pthread_attr struct with the updated priority
 
-
-	pthread_create( &IOThread, &threadAttributes, (void *)UserIO, (void *)0 );
-	pthread_create( &ServoExecThread, &threadAttributes, (void *)ExecuteInstructions, (void *)1 );
 	pthread_create( &Servo1PWMThread, &threadAttributes, (void *)pwmThread, &servos[0]);
 	pthread_create( &Servo2PWMThread, &threadAttributes, (void *)pwmThread, &servos[1]);
+	pthread_create( &ServoExecThread, &threadAttributes, (void *)ExecuteInstructions, (void *)1 );
+	pthread_create( &IOThread, &threadAttributes, (void *)UserIO, (void *)0 );
 }
 
 int main(void)
@@ -194,10 +198,6 @@ int main(void)
 	CreateInterrupt(&pwm1Interrupt, PERIODMICROS, 0);//20ms
 	CreateInterrupt(&pwm2Interrupt, PERIODMICROS, 0);//20ms
 	CreateInterrupt(&instructionInterrupt, 0, 1);//1sec
-
-	//printf("chid = %d, period = %d\n", instructionInterrupt.chid, instructionInterrupt.period);
-	//printf("chid = %d, period = %d\n", pwm1Interrupt.chid, pwm1Interrupt.period);
-	//printf("chid = %d, period = %d\n", pwm2Interrupt.chid, pwm2Interrupt.period);
 
     //Create Threads
     CreateThreads();
@@ -210,7 +210,16 @@ int main(void)
     startInterrupt(&pwm1Interrupt);
     startInterrupt(&pwm2Interrupt);
 
-    pthread_exit(0);
+    //mov(&servos[0], 5);
+    //mov(&servos[1], 0);
+
+    //pthread_exit(0);
+    pthread_join( IOThread, 0 );
+    pthread_join( ServoExecThread, 0 );
+    pthread_join( Servo1PWMThread, 0 );
+    pthread_join( Servo2PWMThread, 0 );
+
+    return 0;
 }
 
 

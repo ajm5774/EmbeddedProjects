@@ -25,7 +25,7 @@ void CreateInterrupt(Interrupt *ret, long periodMicros, long sec)
 	param.sched_priority = sched_get_priority_max( SCHED_RR );
 
 	//set the clock from 10ns to 1microsecond ticks
-	clkper.nsec = 1000;
+	clkper.nsec = 10000;
 	clkper.fract = 0;
 	ClockPeriod ( CLOCK_REALTIME, &clkper, NULL, 0 ); // 1ms
 

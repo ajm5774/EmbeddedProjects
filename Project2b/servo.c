@@ -91,11 +91,11 @@ void process(Servo *servo, Instruction b) {
 			break;
 		case LOOP_START:
 			loop_start(servo, parameter);
-			process(servo, servo->recipe[servo->pc]);
+			execute(servo, servo->recipe[servo->pc]);
 			break;
 		case END_LOOP:
 			end_loop(servo);
-			process(servo, servo->recipe[servo->pc]);
+			execute(servo, servo->recipe[servo->pc]);
 			break;
 		case RECIPE_END:
 			recipe_end(servo);
@@ -140,7 +140,7 @@ void loop_start(Servo *servo, int parameter) {
 	if (parameter >= 0 && parameter <= 31) { /* Valid input */
 		if (servo->loopsRemaining) { /* Already looping */
 			servo->state = ERROR;
-		  setStatus(servo, NestedLoopError);
+		  //setStatus(servo, NestedLoopError);
 		} else { /* Start the loop */
 			servo->loopsRemaining = parameter;
 			/* Increment the PC */
@@ -172,26 +172,32 @@ void recipe_end(Servo *servo) {
 void setStatus(Servo *servo, enum Status status) {
      switch(status) {
       case RecipeCommandError:
+    	  //printf("RecipeCommandError");
         //set LEDs to 0 x x x
         //*servo->leds &= LED_3_ON;
       break;
       case NestedLoopError:
+    	  //printf("NestedLoopError");
         //set LEDs to x 0 x x
         //*servo->leds &= LED_2_ON;
       break;
       case EndOfRecipe:
+    	  //printf("EndOfRecipe");
         //set LEDs to x x 0 x
         //*servo->leds &= LED_1_ON;
       break;
       case RecipePaused:
+    	  //printf("RecipePaused");
         //set LEDs to x x x 0
         //*servo->leds &= LED_0_ON;
       break;
       case RecipeRunning:
+    	  //printf("RecipeRunning");
         //set LEDs to x x x 1
         //*servo->leds |= LED_0_OFF;
         break;
       case Reset:
+    	  //printf("Reset");
         //set LEDs to 1 1 1 1
         //*servo->leds |= LED_3_OFF | LED_2_OFF | LED_1_OFF | LED_0_OFF;
         break;
