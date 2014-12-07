@@ -1,41 +1,95 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <pthread.h>
+#include <sys/neutrino.h>
+#include <sys/mman.h>     /* for mmap_device_io() */
+#include <stdint.h>       /* for uintptr_t */
+#include <hw/inout.h>
+#include <unistd.h>
+#include "timer.h"
 
+//defines
 #define DAQ_START 0x280
-#define CLOCK_OUTPUT_PORT DAQ_START+7
-#define DATA_OUTPUT_PORT DAQ_START+8
-#define ACK_PORT DAQ_START+8
+#define CLOCK_OUTPUT_PORT DAQ_START+8
+#define DATA_OUTPUT_PORT DAQ_START+9
+#define ACK_PORT DAQ_START+10
 #define PORT_LENGTH 1
 #define LOW 0
 #define HIGH 1
 #define CLOCK_PER_MICROS 20
+#define INPUT_PER_MICROS 1000//as to be AT LEAST 16 times slower than clock
+#define INPUT_LENGTH 16
 
+//source variables
 static uintptr_t clock_handle;
 static uintptr_t data_handle;
 static uintptr_t ack_handle;
 int ackReceived = 0;
+int inputVoltage = 0;
+int dataBitIndex = 0;
 
 //interrupts
 Interrupt clock_interrupt;
+Interrupt input_interrupt;
 
 //Threads
 pthread_t ClockDataThread;
 pthread_t InputThread;
 pthread_t AckThread;
 
-int main(int argc, char *argv[]) {
-	//init
-	CreateThreads();
-	CreateInterrupt(&clock_interrupt, CLOCK_PER_MICROS, 0);
-	startInterrupt(&clock_interrupt);
 
-	while(true)
+void Input(int threadID)
+{
+	struct _pulse pulse;
+	while(1)
 	{
-		theInput = input();
-		output(theInput);
-		ack();
+		MsgReceive(input_interrupt.chid, &pulse, sizeof(pulse), NULL);
+
+		//read ADC voltage input
+
 	}
-	return EXIT_SUCCESS;
+}
+
+void ClockDataOutput(int threadID)
+{
+	struct _pulse pulse;
+	clock_handle = mmap_device_io(PORT_LENGTH, CLOCK_OUTPUT_PORT);
+	data_handle = mmap_device_io(PORT_LENGTH, DATA_OUTPUT_PORT);
+
+	while(1)
+	{
+		MsgReceive(clock_interrupt.chid, &pulse, sizeof(pulse), NULL);
+		ackReceived = 0;
+		out8( clock_handle, HIGH );
+
+		if(inputVoltage >> (INPUT_LENGTH - dataBitIndex) & 1)
+			out8( data_handle, HIGH );
+		else
+			out8( data_handle, LOW );
+		usleep(CLOCK_PER_MICROS/2);//output high for half the clock periodS
+		out8( clock_handle, LOW );
+		out8( data_handle, LOW );
+	}
+}
+
+void Ack(int threadID)
+{
+	ack_handle = mmap_device_io(PORT_LENGTH, ACK_PORT);
+
+	while(1)
+	{
+		// Listen for a HIGH event
+		while ((in8(ack_handle) & 1) == LOW){}
+
+		// Listen for a HIGH event
+		while ((in8(ack_handle) & 1) == HIGH){}
+
+		ackReceived = 1;
+		if(dataBitIndex < (INPUT_LENGTH - 1))
+			dataBitIndex++;
+		else
+			printf("Too many data bits were sent!");
+	}
 }
 
 void CreateThreads()
@@ -49,45 +103,20 @@ void CreateThreads()
 	parameters.sched_priority-- ;// lower the priority
 	pthread_attr_setschedparam(&threadAttributes, &parameters) ;	// set up the pthread_attr struct with the updated priority
 
-	pthread_create( &ClockDataThread, &threadAttributes, (void *)ClockDataOutput, &servos[0]);
-	pthread_create( &InputThread, &threadAttributes, (void *)Input, &servos[1]);
-	pthread_create( &AckThread, &threadAttributes, (void *)Ack, (void *)1 );
+	pthread_create( &ClockDataThread, &threadAttributes, (void *)ClockDataOutput, (void *)0);
+	pthread_create( &InputThread, &threadAttributes, (void *)Input, (void *)1);
+	pthread_create( &AckThread, &threadAttributes, (void *)Ack, (void *)2);
 }
 
-float Input()
-{
+int main(int argc, char *argv[]) {
+	//init
+	CreateInterrupt(&clock_interrupt, CLOCK_PER_MICROS, 0);
+	CreateInterrupt(&input_interrupt, INPUT_PER_MICROS, 0);
 
-}
+	CreateThreads();
 
-void ClockDataOutput()
-{
-	struct _pulse pulse;
-	int dataOutputIndex = 0;
-	clock_handle = mmap_device_io(PORT_LENGTH, CLOCK_OUTPUT_PORT);
-	data_handle = mmap_device_io(PORT_LENGTH, DATA_OUTPUT_PORT);
+	startInterrupt(&clock_interrupt);
+	startInterrupt(&input_interrupt);
 
-
-	while(true)
-	{
-		MsgReceive(clock_interrupt->chid, &pulse, sizeof(pulse), NULL);
-		out8( clock_handle, HIGH );
-		usleep(CLOCK_PER_MICROS/2);
-		out8( clock_handle, LOW );
-	}
-}
-
-void Ack()
-{
-	ack_handle = mmap_device_io(PORT_LENGTH, ACK_PORT);
-
-	while(true)
-	{
-		// Listen for a HIGH event
-		while ((in8(echo_handle) & 1) == LOW){}
-
-		// Listen for a HIGH event
-		while ((in8(echo_handle) & 1) == HIGH){}
-
-		ackReceived = true;
-	}
+	return EXIT_SUCCESS;
 }
