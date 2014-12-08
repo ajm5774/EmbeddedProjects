@@ -11,8 +11,9 @@
 //defines
 #define DAQ_START 0x280
 #define CLOCK_OUTPUT_PORT DAQ_START+8
-#define DATA_OUTPUT_PORT DAQ_START+9
-#define ACK_PORT DAQ_START+10
+#define ACK_PORT DAQ_START+9
+#define DATA_OUTPUT_PORT_START DAQ_START+10
+#define NUM_DATA_LINES 6
 #define PORT_LENGTH 1
 #define LOW 0
 #define HIGH 1
@@ -22,7 +23,7 @@
 
 //source variables
 static uintptr_t clock_handle;
-static uintptr_t data_handle;
+static uintptr_t data_handles[NUM_DATA_LINES];
 static uintptr_t ack_handle;
 int ackReceived = 0;
 int inputVoltage = 0;
@@ -50,11 +51,36 @@ void Input(int threadID)
 	}
 }
 
+void Output(int output, int length, uintptr_t handles[])
+{
+	int i;
+	//output data
+	for(i = 0; i < length; i++)
+	{
+		if(i == (length - 1))//if it is the last data bit, we want to send the sign
+		{
+			if(output >= 0)
+				out8( handles[i], LOW );
+			else
+				out8( handles[i], HIGH );// negative values output positive
+
+		}
+		else if(output >> i & 1)
+			out8( handles[i], HIGH );
+		else
+			out8( handles[i], LOW );
+	}
+}
+
 void ClockDataOutput(int threadID)
 {
 	struct _pulse pulse;
+	int i;
 	clock_handle = mmap_device_io(PORT_LENGTH, CLOCK_OUTPUT_PORT);
-	data_handle = mmap_device_io(PORT_LENGTH, DATA_OUTPUT_PORT);
+	for(i = 0; i < NUM_DATA_LINES; i++)
+	{
+		data_handles[i] = mmap_device_io(PORT_LENGTH, DATA_OUTPUT_PORT_START + i);
+	}
 
 	while(1)
 	{
@@ -62,11 +88,9 @@ void ClockDataOutput(int threadID)
 		ackReceived = 0;
 		out8( clock_handle, HIGH );
 
-		if(inputVoltage >> (INPUT_LENGTH - dataBitIndex) & 1)
-			out8( data_handle, HIGH );
-		else
-			out8( data_handle, LOW );
-		usleep(CLOCK_PER_MICROS/2);//output high for half the clock periodS
+		Output(inputVoltage, NUM_DATA_LINES, data_handles);
+
+		usleep(CLOCK_PER_MICROS/2);//output high for half the clock period
 		out8( clock_handle, LOW );
 		out8( data_handle, LOW );
 	}
