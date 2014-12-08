@@ -6,34 +6,35 @@
 
 #include "adc.h"
 
-static uintptr_t command_handle;
-static uintptr_t adc_channel_handle;
-static uintptr_t adc_settings_handle;
+static int numRegisters = 4;
+static uintptr_t command_handle[numRegisters];
 
 void initADC() {
 	// Make handle to ADC
-	command_handle = mmap_device_io(PORT_LENGTH, COMMAND_REGISTER);
-	adc_channel_handle = mmap_device_io(PORT_LENGTH, ADC_CHANNEL_REGISTER);
-	adc_settings_handle = mmap_device_io(PORT_LENGTH, ADC_SETTINGS_REGISTER);
+	int i;
+
+	for (i = 0; i < numRegisters; i++) {
+		command_handle[i] = mmap_device_io( PORT_LENGTH, COMMAND_REGISTER + i );
+	}
 
 	// Select the input channel
-	out8( adc_channel_handle, 0xF0 ); // 15 bits
+	out8( command_handle[2], 0xF0 ); // 15 bits
 
 	// Select the input range
-	out8( adc_settings_handle, 0x01 ); // +-5V
+	out8( command_handle[3], 0x01 ); // +-5V
 
 	// Wait for analog input circuit to settle
 	usleep(10);
 }
 
 void startADC() {
-	out8( command_handle, 0x80 );
+	out8( command_handle[0], 0x80 );
 }
 
 int checkStatus() {
 	int i;
 	for (i = 0; i < 10000; i++) {
-		if (!in8( adc_settings_handle ) & 0x80)
+		if (!in8( command_handle[3] ) & 0x80)
 			return 0;
 	}
 
@@ -43,8 +44,12 @@ int checkStatus() {
 int16_t readData() {
 	uint8_t LSB, MSB;
 
-	LSB = in8 ( command_handle );
-	MSB = in8 ( command_handle+1 );
+	LSB = in8 ( command_handle[0] );
+	MSB = in8 ( command_handle[1] );
 
-	return (MSG * 256) + LSB;
+	return (MSB * 256) + LSB;
+}
+
+int convertData(int16_t data, int vfs) {
+	return data / 32768 * vfs;
 }
