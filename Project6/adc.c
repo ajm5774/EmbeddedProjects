@@ -3,22 +3,29 @@
  *
  * Definition of adc functions.
  */
-
+#include <hw/inout.h>
+#include <unistd.h>
+#include <sys/mman.h>     /* for mmap_device_io() */
+#include <stdint.h>
+#include <sys/neutrino.h>
 #include "adc.h"
+#define NUM_REGISTERS 4
 
-static int numRegisters = 4;
-static uintptr_t command_handle[numRegisters];
+static uintptr_t command_handle[NUM_REGISTERS];
 
 void initADC() {
 	// Make handle to ADC
 	int i;
 
-	for (i = 0; i < numRegisters; i++) {
+	/* Give this thread root permissions to access the hardware */
+	ThreadCtl( _NTO_TCTL_IO, NULL );
+
+	for (i = 0; i < NUM_REGISTERS; i++) {
 		command_handle[i] = mmap_device_io( PORT_LENGTH, COMMAND_REGISTER + i );
 	}
 
 	// Select the input channel
-	out8( command_handle[2], 0xF0 ); // 15 bits
+	out8( command_handle[2], 0x22 ); // 15 bits
 
 	// Select the input range
 	out8( command_handle[3], 0x01 ); // +-5V
@@ -34,7 +41,7 @@ void startADC() {
 int checkStatus() {
 	int i;
 	for (i = 0; i < 10000; i++) {
-		if (!in8( command_handle[3] ) & 0x80)
+		if (!(in8( command_handle[3] ) & 0x80))
 			return 0;
 	}
 
