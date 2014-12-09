@@ -14,7 +14,9 @@
 #define HIGH 1
 #define LOW 0
 #define PORT_LENGTH 1
-
+#define NUM_REGISTERS 4
+#define HIGH_CHANNEL 2
+#define LOW_CHANNEL 2
 
 // Initialize the ADC
 void initADC();

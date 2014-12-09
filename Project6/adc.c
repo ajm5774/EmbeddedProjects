@@ -9,7 +9,6 @@
 #include <stdint.h>
 #include <sys/neutrino.h>
 #include "adc.h"
-#define NUM_REGISTERS 4
 
 static uintptr_t command_handle[NUM_REGISTERS];
 
@@ -25,7 +24,7 @@ void initADC() {
 	}
 
 	// Select the input channel
-	out8( command_handle[2], 0x22 ); // 15 bits
+	out8( command_handle[2], (HIGH_CHANNELS << 4) | LOW_CHANNELS );
 
 	// Select the input range
 	out8( command_handle[3], 0x01 ); // +-5V
@@ -34,7 +33,7 @@ void initADC() {
 	//monitor the WAIT bit at Base + 3 bit 5
 	//when it is 1, the curcuit is actively settling on the input signal.
 	//When it is 0, the board is ready to perform A/D conversions
-	while(command_handle[3] & 0x10){}
+	while( in8( command_handle[3] ) & 0x10){}
 }
 
 void startADC() {
