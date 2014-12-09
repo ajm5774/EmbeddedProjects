@@ -19,7 +19,7 @@
 #define LOW 0
 #define HIGH 1
 #define CLOCK_PER_MICROS 20
-#define INPUT_PER_MICROS 1000//as to be AT LEAST 16 times slower than clock
+#define INPUT_PER_MICROS 10000//as to be AT LEAST 16 times slower than clock
 #define INPUT_LENGTH 16
 #define VFS 5
 
@@ -54,7 +54,7 @@ void Input(int threadID)
 		//read ADC voltage input
 		startADC();
 		if(checkStatus() == 0)
-			inputVoltage = convertData(readData, VFS);
+			inputVoltage = convertData(readData(), VFS);
 		else
 			inputVoltage = 0;//=(
 

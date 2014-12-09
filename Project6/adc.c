@@ -31,7 +31,10 @@ void initADC() {
 	out8( command_handle[3], 0x01 ); // +-5V
 
 	// Wait for analog input circuit to settle
-	usleep(10);
+	//monitor the WAIT bit at Base + 3 bit 5
+	//when it is 1, the curcuit is actively settling on the input signal.
+	//When it is 0, the board is ready to perform A/D conversions
+	while(command_handle[3] & 0x10){}
 }
 
 void startADC() {
@@ -49,7 +52,7 @@ int checkStatus() {
 }
 
 int16_t readData() {
-	uint8_t LSB, MSB;
+	char LSB, MSB;
 
 	LSB = in8 ( command_handle[0] );
 	MSB = in8 ( command_handle[1] );
@@ -58,5 +61,5 @@ int16_t readData() {
 }
 
 int convertData(int16_t data, int vfs) {
-	return data / 32768 * vfs;
+	return data * vfs / 32768;
 }
