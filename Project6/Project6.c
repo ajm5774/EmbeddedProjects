@@ -21,7 +21,7 @@
 #define CLOCK_PER_MICROS 20
 #define INPUT_PER_MICROS 10000//as to be AT LEAST 16 times slower than clock
 #define INPUT_LENGTH 16
-#define VFS 5
+
 
 //source variables
 static uintptr_t clock_handle;
@@ -29,7 +29,6 @@ static uintptr_t data_handles[NUM_DATA_LINES];
 static uintptr_t ack_handle;
 int ackReceived = 0;
 int inputVoltage = 0;
-int dataBitIndex = 0;
 
 //interrupts
 Interrupt clock_interrupt;
@@ -54,7 +53,7 @@ void Input(int threadID)
 		//read ADC voltage input
 		startADC();
 		if(checkStatus() == 0)
-			inputVoltage = convertData(readData(), VFS);
+			inputVoltage = convertData(readData());
 		else
 			inputVoltage = 0;//=(
 
@@ -129,6 +128,7 @@ void Ack(int threadID)
 
 	ack_handle = mmap_device_io(PORT_LENGTH, ACK_PORT);
 
+	/*
 	while(1)
 	{
 		// Listen for a HIGH event
@@ -138,11 +138,8 @@ void Ack(int threadID)
 		while ((in8(ack_handle) & 1) == HIGH){}
 
 		ackReceived = 1;
-		if(dataBitIndex < (INPUT_LENGTH - 1))
-			dataBitIndex++;
-		else
-			printf("Too many data bits were sent!");
 	}
+	*/
 }
 
 void CreateThreads()
@@ -156,24 +153,29 @@ void CreateThreads()
 	parameters.sched_priority-- ;// lower the priority
 	pthread_attr_setschedparam(&threadAttributes, &parameters) ;	// set up the pthread_attr struct with the updated priority
 
-	pthread_create( &ClockDataThread, &threadAttributes, (void *)ClockDataOutput, (void *)0);
+	//pthread_create( &ClockDataThread, &threadAttributes, (void *)ClockDataOutput, (void *)0);
 	pthread_create( &InputThread, &threadAttributes, (void *)Input, (void *)1);
-	pthread_create( &AckThread, &threadAttributes, (void *)Ack, (void *)2);
+	//pthread_create( &AckThread, &threadAttributes, (void *)Ack, (void *)2);
 }
 
 int main(int argc, char *argv[]) {
 	//init
-	CreateInterrupt(&clock_interrupt, CLOCK_PER_MICROS, 0);
+	printf("Starting...\n");
+	//CreateInterrupt(&clock_interrupt, CLOCK_PER_MICROS, 0);
 	CreateInterrupt(&input_interrupt, INPUT_PER_MICROS, 0);
 
 	CreateThreads();
 
-	startInterrupt(&clock_interrupt);
+	//startInterrupt(&clock_interrupt);
 	startInterrupt(&input_interrupt);
 
-	pthread_join( ClockDataThread, 0 );
+	printf("I am running!\n");
+
+	//pthread_join( ClockDataThread, 0 );
 	pthread_join( InputThread, 0 );
-	pthread_join( AckThread, 0 );
+	//pthread_join( AckThread, 0 );
+
+
 
 	return 0;
 }

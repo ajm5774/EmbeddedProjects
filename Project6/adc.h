@@ -15,8 +15,9 @@
 #define LOW 0
 #define PORT_LENGTH 1
 #define NUM_REGISTERS 4
-#define HIGH_CHANNEL 2
-#define LOW_CHANNEL 2
+#define HIGH_CHANNEL 0
+#define LOW_CHANNEL 0
+#define VFS 5
 
 // Initialize the ADC
 void initADC();
@@ -31,6 +32,6 @@ int checkStatus();
 int16_t readData();
 
 // Convert the data to a meaningful value (full-scale voltage)
-int convertData(int16_t data, int vfs);
+int convertData(int16_t data);
 
 #endif

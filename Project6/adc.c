@@ -3,6 +3,7 @@
  *
  * Definition of adc functions.
  */
+#include <stdio.h>
 #include <hw/inout.h>
 #include <unistd.h>
 #include <sys/mman.h>     /* for mmap_device_io() */
@@ -24,16 +25,17 @@ void initADC() {
 	}
 
 	// Select the input channel
-	out8( command_handle[2], (HIGH_CHANNELS << 4) | LOW_CHANNELS );
+	out8( command_handle[2], 0x22 ); // 15 bits
+	//out8( command_handle[2], (HIGH_CHANNEL << 4) | LOW_CHANNEL );
 
 	// Select the input range
-	out8( command_handle[3], 0x01 ); // +-5V
+	out8( command_handle[3], 0x02 ); // +-2.5V
 
 	// Wait for analog input circuit to settle
 	//monitor the WAIT bit at Base + 3 bit 5
-	//when it is 1, the curcuit is actively settling on the input signal.
+	//when it is 1, the circuit is actively settling on the input signal.
 	//When it is 0, the board is ready to perform A/D conversions
-	while( in8( command_handle[3] ) & 0x10){}
+	while(in8( command_handle[3] ) & 0x20){}
 }
 
 void startADC() {
@@ -56,9 +58,9 @@ int16_t readData() {
 	LSB = in8 ( command_handle[0] );
 	MSB = in8 ( command_handle[1] );
 
-	return (MSB * 256) + LSB;
+	return MSB * 256 + LSB;
 }
 
-int convertData(int16_t data, int vfs) {
-	return data * vfs / 32768;
+int convertData(int16_t data) {
+	return data * VFS / 32768;
 }
