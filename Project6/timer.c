@@ -18,6 +18,8 @@ void CreateInterrupt(Interrupt *ret, long periodMicros, long sec)
 	struct sched_param param;
 	timer_t timer_id;
 
+	/* Give this thread root permissions to access the hardware */
+	ThreadCtl( _NTO_TCTL_IO, NULL );
 
 	int chid = ChannelCreate( 0 ); //create event channel
 
@@ -25,7 +27,7 @@ void CreateInterrupt(Interrupt *ret, long periodMicros, long sec)
 	param.sched_priority = sched_get_priority_max( SCHED_RR );
 
 	//set the clock from 10ns to 1microsecond ticks
-	clkper.nsec = 10000;
+	clkper.nsec = 100000;
 	clkper.fract = 0;
 	ClockPeriod ( CLOCK_REALTIME, &clkper, NULL, 0 ); // 1ms
 
@@ -50,8 +52,6 @@ void CreateInterrupt(Interrupt *ret, long periodMicros, long sec)
 	timer.it_interval.tv_sec = sec;
 	timer.it_interval.tv_nsec = periodMicros * 1000;
 
-	/* Give this thread root permissions to access the hardware */
-	ThreadCtl( _NTO_TCTL_IO, NULL );
 
 	//ret = (Interrupt){timer_id, timer, chid, periodMicros};
 	ret->timer_id = timer_id;

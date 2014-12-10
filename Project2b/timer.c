@@ -51,7 +51,7 @@ void CreateInterrupt(Interrupt *ret, long periodMicros, long sec)
 	timer.it_interval.tv_nsec = periodMicros * 1000;
 
 	/* Give this thread root permissions to access the hardware */
-	ThreadCtl( _NTO_TCTL_IO, NULL );
+	//ThreadCtl( _NTO_TCTL_IO, NULL );
 
 	//ret = (Interrupt){timer_id, timer, chid, periodMicros};
 	ret->timer_id = timer_id;

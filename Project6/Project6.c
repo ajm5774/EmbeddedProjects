@@ -11,25 +11,25 @@
 
 //defines
 #define DAQ_START 0x280
-#define CLOCK_OUTPUT_PORT DAQ_START+8
-#define ACK_PORT DAQ_START+9
-#define DATA_OUTPUT_PORT_START DAQ_START+10
+#define DATA_OUTPUT_PORT DAQ_START+8
+#define DATA_INPUT_PORT DAQ_START+9
+#define DATA_CTRL_PORT DAQ_START+11
 #define NUM_DATA_LINES 5
 #define PORT_LENGTH 1
 #define LOW 0
 #define HIGH 1
-#define CLOCK_PER_MICROS 20
-#define INPUT_PER_MICROS 10000//as to be AT LEAST 16 times slower than clock
+#define CLOCK_PER_MICROS 2000
+#define INPUT_PER_MICROS 20000//as to be AT LEAST 16 times slower than clock
 #define INPUT_LENGTH 16
-#define VFS 5
+
 
 //source variables
-static uintptr_t clock_handle;
-static uintptr_t data_handles[NUM_DATA_LINES];
-static uintptr_t ack_handle;
+static uintptr_t input_handle;
+static uintptr_t output_handle;
+static uintptr_t io_ctrl_handle;
+
 int ackReceived = 0;
 int inputVoltage = 0;
-int dataBitIndex = 0;
 
 //interrupts
 Interrupt clock_interrupt;
@@ -54,71 +54,70 @@ void Input(int threadID)
 		//read ADC voltage input
 		startADC();
 		if(checkStatus() == 0)
-			inputVoltage = convertData(readData(), VFS);
+			inputVoltage = convertData(readData());
 		else
 			inputVoltage = 0;//=(
 
-		printf("%d\n", inputVoltage);
+		//printf("%d\n", inputVoltage);
 	}
 }
 
-void Output(int output, int length, uintptr_t handles[])
-{
-	int i, k;
-	int parityCalc;
 
-	//output data
+
+
+int calcParity(int output, int length)
+{
+	int i;
+	int parityCalc = 0;
+
 	for(i = 0; i < length; i++)
 	{
-		if(i == (length - 1))
-		{
-			if(parityCalc % 2)
-				out8( handles[i], HIGH );//odd
-			else
-				out8( handles[i], LOW );//even
-		}
-		else if(i == (length - 2))//if it is the last data bit, we want to send the sign
-		{
-			if(output >= 0)
-				out8( handles[i], LOW );
-			else
-				out8( handles[i], HIGH );// negative values output positive
-
-		}
-		else if(output >> i & 1)
-		{
-			out8( handles[i], HIGH );
+		if(output >> i & 1)
 			parityCalc++;
-		}
-		else
-			out8( handles[i], LOW );
 	}
+
+	if(parityCalc % 2 == 0)
+		return 0;
+	else
+		return 1;
 }
 
+//lines 0-4 = data
+//line 5 = parity
+//line 6 = Clock
+//line 7 = Ack
 void ClockDataOutput(int threadID)
 {
 	struct _pulse pulse;
-	int i;
+	uint8_t output = 0;
 
 	/* Give this thread root permissions to access the hardware */
 	ThreadCtl( _NTO_TCTL_IO, NULL );
 
-	clock_handle = mmap_device_io(PORT_LENGTH, CLOCK_OUTPUT_PORT);
-	for(i = 0; i < NUM_DATA_LINES; i++)
-	{
-		data_handles[i] = mmap_device_io(PORT_LENGTH, DATA_OUTPUT_PORT_START + i);
-	}
+	output_handle = mmap_device_io(PORT_LENGTH, DATA_OUTPUT_PORT);
 
 	while(1)
 	{
 		MsgReceive(clock_interrupt.chid, &pulse, sizeof(pulse), NULL);
-		ackReceived = 0;
-		out8( clock_handle, HIGH );
 
-		Output(inputVoltage, NUM_DATA_LINES, data_handles);
+		if(ackReceived)
+		{
+			output = (HIGH << (NUM_DATA_LINES + 1) )
+					|(calcParity(inputVoltage, NUM_DATA_LINES) << NUM_DATA_LINES)
+					|(inputVoltage & 0x1f);
+			out8( output_handle, output);
+			ackReceived = 0;
+		}
+		else
+		{
+			output = (HIGH << (NUM_DATA_LINES + 1));
+			out8( output_handle, output);
+		}
 
-		usleep(CLOCK_PER_MICROS/2);//output high for half the clock period
-		out8( clock_handle, LOW );
+		MsgReceive(clock_interrupt.chid, &pulse, sizeof(pulse), NULL);
+
+		output = output & 0xbf;
+		out8( output_handle, output );
 	}
 }
 
@@ -127,21 +126,15 @@ void Ack(int threadID)
 	/* Give this thread root permissions to access the hardware */
 	ThreadCtl( _NTO_TCTL_IO, NULL );
 
-	ack_handle = mmap_device_io(PORT_LENGTH, ACK_PORT);
-
 	while(1)
 	{
 		// Listen for a HIGH event
-		while ((in8(ack_handle) & 1) == LOW){}
+		while ((in8(input_handle) & 0x80) == LOW){}
 
-		// Listen for a HIGH event
-		while ((in8(ack_handle) & 1) == HIGH){}
+		// Listen for a LOW event
+		while ((in8(input_handle) & 0x80)){}
 
 		ackReceived = 1;
-		if(dataBitIndex < (INPUT_LENGTH - 1))
-			dataBitIndex++;
-		else
-			printf("Too many data bits were sent!");
 	}
 }
 
@@ -158,11 +151,24 @@ void CreateThreads()
 
 	pthread_create( &ClockDataThread, &threadAttributes, (void *)ClockDataOutput, (void *)0);
 	pthread_create( &InputThread, &threadAttributes, (void *)Input, (void *)1);
-	pthread_create( &AckThread, &threadAttributes, (void *)Ack, (void *)2);
+	//pthread_create( &AckThread, &threadAttributes, (void *)Ack, (void *)2);
 }
 
-int main(int argc, char *argv[]) {
+void initIO() {
+	/* Give this thread root permissions to access the hardware */
+	ThreadCtl( _NTO_TCTL_IO, NULL );
+
+	io_ctrl_handle = mmap_device_io(PORT_LENGTH, DATA_CTRL_PORT);
+
+	out8( io_ctrl_handle, 0x00);
+}
+
+int main(int argc, char *argv[])
+{
 	//init
+	printf("Starting...\n");
+	initIO();
+
 	CreateInterrupt(&clock_interrupt, CLOCK_PER_MICROS, 0);
 	CreateInterrupt(&input_interrupt, INPUT_PER_MICROS, 0);
 
@@ -175,5 +181,6 @@ int main(int argc, char *argv[]) {
 	pthread_join( InputThread, 0 );
 	pthread_join( AckThread, 0 );
 
+	printf("done!\n");
 	return 0;
 }
