@@ -18,8 +18,8 @@
 #define PORT_LENGTH 1
 #define LOW 0
 #define HIGH 1
-#define CLOCK_PER_MICROS 2000
-#define INPUT_PER_MICROS 20000//as to be AT LEAST 16 times slower than clock
+#define CLOCK_PER_MICROS 50000
+#define INPUT_PER_MICROS 50000
 #define INPUT_LENGTH 16
 
 
@@ -62,9 +62,6 @@ void Input(int threadID)
 	}
 }
 
-
-
-
 int calcParity(int output, int length)
 {
 	int i;
@@ -90,6 +87,7 @@ void ClockDataOutput(int threadID)
 {
 	struct _pulse pulse;
 	uint8_t output = 0;
+	int firstAckReceived = 0;
 
 	/* Give this thread root permissions to access the hardware */
 	ThreadCtl( _NTO_TCTL_IO, NULL );
@@ -100,19 +98,24 @@ void ClockDataOutput(int threadID)
 	{
 		MsgReceive(clock_interrupt.chid, &pulse, sizeof(pulse), NULL);
 
-		if(ackReceived)
+		if(ackReceived && !firstAckReceived)//if its the first ack
+		{
+			output = 0xff;
+			firstAckReceived = 1;
+		}
+		else if(ackReceived)
 		{
 			output = (HIGH << (NUM_DATA_LINES + 1) )
 					|(calcParity(inputVoltage, NUM_DATA_LINES) << NUM_DATA_LINES)
 					|(inputVoltage & 0x1f);
-			out8( output_handle, output);
 			ackReceived = 0;
 		}
 		else
 		{
 			output = (HIGH << (NUM_DATA_LINES + 1));
-			out8( output_handle, output);
 		}
+
+		out8( output_handle, output);
 
 		MsgReceive(clock_interrupt.chid, &pulse, sizeof(pulse), NULL);
 
@@ -126,13 +129,15 @@ void Ack(int threadID)
 	/* Give this thread root permissions to access the hardware */
 	ThreadCtl( _NTO_TCTL_IO, NULL );
 
+	input_handle = mmap_device_io(PORT_LENGTH, DATA_INPUT_PORT);
+
 	while(1)
 	{
-		// Listen for a HIGH event
-		while ((in8(input_handle) & 0x80) == LOW){}
+		// wait until HIGH event
+		while (!(in8(input_handle) & 1)){}
 
-		// Listen for a LOW event
-		while ((in8(input_handle) & 0x80)){}
+		// wait until LOW event
+		while ((in8(input_handle) & 1)){}
 
 		ackReceived = 1;
 	}
@@ -151,7 +156,7 @@ void CreateThreads()
 
 	pthread_create( &ClockDataThread, &threadAttributes, (void *)ClockDataOutput, (void *)0);
 	pthread_create( &InputThread, &threadAttributes, (void *)Input, (void *)1);
-	//pthread_create( &AckThread, &threadAttributes, (void *)Ack, (void *)2);
+	pthread_create( &AckThread, &threadAttributes, (void *)Ack, (void *)2);
 }
 
 void initIO() {
@@ -160,7 +165,7 @@ void initIO() {
 
 	io_ctrl_handle = mmap_device_io(PORT_LENGTH, DATA_CTRL_PORT);
 
-	out8( io_ctrl_handle, 0x00);
+	out8( io_ctrl_handle, 0x02);
 }
 
 int main(int argc, char *argv[])
